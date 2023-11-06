@@ -1,5 +1,6 @@
 package loader;
 
+import annotation.SPI;
 import config.LoadingConfig;
 
 import java.io.BufferedReader;
@@ -13,22 +14,45 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ExtensionLoader<T> {
 
-    private Class<?> type;
+    private final Class<?> type;
 
-    private static Map<Class<?>, ExtensionLoader<?>> loaderMap = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, ExtensionLoader<?>> loaderMap = new ConcurrentHashMap<>();
+
+    private static final Map<Class<?>, Object> objectMap = new ConcurrentHashMap<>();
 
     public ExtensionLoader(Class<?> type) {
         this.type = type;
     }
 
     public T getExtension(String name){
+        return getExtension(name, false);
+    }
+
+    public T getExtension(String name, boolean isSingleton){
         Map<String, Class<?>> classMap = getClassMap();
         if (!classMap.containsKey(name)) {
             return null;
         }
 
         Class<?> aClass = classMap.get(name);
+
         Object o;
+        if(isSingleton){
+            o = objectMap.get(aClass);
+            if(o != null){
+                return (T) o;
+            }
+
+            // 实例化
+            try {
+                o = aClass.newInstance();
+            } catch (Exception e) {
+                return null;
+            }
+
+            objectMap.put(aClass, o);
+            return (T) o;
+        }
 
         // 实例化
         try {
@@ -40,19 +64,35 @@ public class ExtensionLoader<T> {
         return (T) o;
     }
 
+    public T getDefaultExtension(){
+        TreeMap<String, Class<?>> classMap = getClassMap();
+        SPI defaultSPI = type.getAnnotation(SPI.class);
+        String name = defaultSPI.value();
+        if(name.equals("")){
+            return getExtension(classMap.firstKey());
+        }
+
+        return getExtension(defaultSPI.value());
+    }
+
+    public T getAdaptiveExtension(){
+        // TODO
+        return null;
+    }
+
     public Set<String> getSupportedExtensions(){
         Map<String, Class<?>> classMap = getClassMap();
         return classMap.keySet();
     }
 
-    private Map<String, Class<?>> getClassMap(){
+    private TreeMap<String, Class<?>> getClassMap(){
         String fileName = LoadingConfig.directoryPrefix + type.getName();
         URL resource = ClassLoader.getSystemClassLoader().getResource(fileName);
         return loadResource(resource);
     }
 
-    private Map<String, Class<?>> loadResource(URL resource) {
-        Map<String, Class<?>> classMap = new HashMap<>();
+    private TreeMap<String, Class<?>> loadResource(URL resource) {
+        TreeMap<String, Class<?>> classMap = new TreeMap<>();
         try {
             List<String> resourceContent = getResourceContent(resource);
             for(String line : resourceContent){
