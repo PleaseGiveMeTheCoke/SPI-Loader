@@ -16,6 +16,8 @@ public class ExtensionLoader<T> {
 
     private final Class<?> type;
 
+    private Object cachedAdaptiveInstance;
+
     private static final Map<Class<?>, ExtensionLoader<?>> loaderMap = new ConcurrentHashMap<>();
 
     private static final Map<Class<?>, Object> objectMap = new ConcurrentHashMap<>();
@@ -76,8 +78,17 @@ public class ExtensionLoader<T> {
     }
 
     public T getAdaptiveExtension(){
-        // TODO
-        return null;
+        if(cachedAdaptiveInstance != null){
+            return (T) cachedAdaptiveInstance;
+        }
+
+        cachedAdaptiveInstance = createAdaptiveInstance();
+        return (T) cachedAdaptiveInstance;
+    }
+
+    private Object createAdaptiveInstance() {
+        String code = AdaptiveClassCodeGenerator.generateCode(type);
+        return Compiler.compile(type, code);
     }
 
     public Set<String> getSupportedExtensions(){
