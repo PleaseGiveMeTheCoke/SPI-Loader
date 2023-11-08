@@ -87,7 +87,7 @@ public class ExtensionLoader<T> {
     }
 
     private Object createAdaptiveInstance() {
-        String code = AdaptiveClassCodeGenerator.generateCode(type);
+        String code = new AdaptiveClassCodeGenerator(type).generateCode();
         return Compiler.compile(type, code);
     }
 

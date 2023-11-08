@@ -1,5 +1,7 @@
 package loader;
 
+import annotation.Adaptive;
+
 import java.lang.reflect.Method;
 
 public class AdaptiveClassCodeGenerator {
@@ -37,26 +39,67 @@ public class AdaptiveClassCodeGenerator {
         for (Class<?> parameterType : parameterTypes) {
             methodInfo.append(parameterType.getName()).append(" ").append("arg").append(i).append(",");
         }
-
-        methodInfo.deleteCharAt(methodInfo.length() - 1);
-        methodInfo.append("){");
+        if(parameterTypes.length > 0){
+            methodInfo.deleteCharAt(methodInfo.length() - 1);
+        }
+        methodInfo.append("){\n");
         methodInfo.append(generateMethodContent(method));
-        methodInfo.append("}");
+        methodInfo.append("}\n");
 
         return methodInfo.toString();
     }
 
     private String generateMethodContent(Method method) {
-        //无注解抛出异常
-        //有注解，读取index
-        //如果index == -1，生成代码，获取SPI注解中指定的扩展
-        //如果index != -1 并且下标位置的参数不为String，抛出异常
-        //获取名为下标参数的扩展
-        //调用扩展的该方法
+        StringBuilder methodContent = new StringBuilder();
+        Adaptive annotation = method.getAnnotation(Adaptive.class);
+        if(annotation == null){
+            methodContent.append("throw new RuntimeException(\"method not support adaptive\");\n");
+            return methodContent.toString();
+        }
+
+        int index = annotation.index();
+        Class<?>[] parameterTypes = method.getParameterTypes();
+        if(index >= 0 && index < parameterTypes.length){
+            Class<?> parameterType = parameterTypes[index];
+            if(parameterType != String.class){
+                methodContent.append("throw new RuntimeException(\"given arg not a String\");\n");
+                return methodContent.toString();
+            }
+
+            methodContent.append("if(arg" + index + " == null || arg" + index + ".equals(\"\")){\n" +
+                    "            throw new RuntimeException(\"null arg of extension name\");\n" +
+                    "        }\n");
+            methodContent.append("Object extension = ExtensionLoader.getExtensionLoader(" + type.getName() + ".class).getExtension(arg" + index + ");\n");
+            methodContent.append("if(extension == null){\n" +
+                    "            throw new RuntimeException(\"no such extension of name given by index\");\n" +
+                    "        }\n");
+            methodContent.append("return ((" + type.getName() + ")extension)." + method.getName() + "(" + getArgList(method) + ");\n");
+            return methodContent.toString();
+        }
+
+        String value = annotation.value();
+        methodContent.append("Object extension = ExtensionLoader.getExtensionLoader(" + type.getName() + ".class).getExtension(\"" + value + "\");\n");
+        methodContent.append("if(extension == null){\n" +
+                "            throw new RuntimeException(\"no such extension of name given by value\");\n" +
+                "        }\n");
+        methodContent.append("return ((" + type.getName() + ")extension)." + method.getName() + "(" + getArgList(method) + ");\n");
+        return methodContent.toString();
+    }
+
+    private String getArgList(Method method) {
+        StringBuilder argList = new StringBuilder();
+        for (int i = 0; i < method.getParameterTypes().length; i++) {
+            argList.append("arg").append(i).append(",");
+        }
+
+        if(argList.length() == 0){
+            return argList.toString();
+        }
+        return argList.deleteCharAt(argList.length() - 1).toString();
     }
 
     private String generateClassInfo() {
-        String classInfo = "public class %s$Adaptive implements %s {";
+        String classInfo = "public class %s$Adaptive implements %s {\n";
         return String.format(classInfo, type.getSimpleName(), type.getSimpleName());
     }
 
