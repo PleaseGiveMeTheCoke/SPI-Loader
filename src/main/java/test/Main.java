@@ -1,11 +1,12 @@
 package test;
 
 import loader.AdaptiveClassCodeGenerator;
+import loader.Compiler;
 import loader.ExtensionLoader;
 
 public class Main {
-    public static void main(String[] args) {
-        testGenerateCode();
+    public static void main(String[] args) throws Exception {
+        testAdaptive();
     }
 
     private static void testSingleton(){
@@ -20,6 +21,22 @@ public class Main {
 
     private static void testGenerateCode(){
         System.out.println(new AdaptiveClassCodeGenerator(Animal.class).generateCode());
+    }
+
+    private static void testCompile() throws IllegalAccessException, InstantiationException {
+        String sourceCode = new AdaptiveClassCodeGenerator(Animal.class).generateCode();
+        Class<?> compile = Compiler.compile(Animal.class, sourceCode, Thread.currentThread().getContextClassLoader());
+        Animal animal = (Animal)compile.newInstance();
+        System.out.println(animal.howl());
+        System.out.println(animal.owner("dog"));
+        System.out.println(animal.owner("cat"));
+    }
+
+    private static void testAdaptive() throws IllegalAccessException, InstantiationException {
+        Animal animal = ExtensionLoader.getExtensionLoader(Animal.class).getAdaptiveExtension();
+        System.out.println(animal.howl());
+        System.out.println(animal.owner("dog"));
+        System.out.println(animal.owner("cat"));
     }
 
 }

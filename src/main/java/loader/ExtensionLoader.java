@@ -87,8 +87,13 @@ public class ExtensionLoader<T> {
     }
 
     private Object createAdaptiveInstance() {
-        String code = new AdaptiveClassCodeGenerator(type).generateCode();
-        return Compiler.compile(type, code);
+        try {
+            String code = new AdaptiveClassCodeGenerator(type).generateCode();
+            return Compiler.compile(type, code, type.getClassLoader()).newInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public Set<String> getSupportedExtensions(){
@@ -120,13 +125,13 @@ public class ExtensionLoader<T> {
         return classMap;
     }
 
-    public static ExtensionLoader<?> getExtensionLoader(Class<?> type){
+    public static <T> ExtensionLoader<T> getExtensionLoader(Class<T> type){
         if(loaderMap.get(type) == null){
-            ExtensionLoader<?> loader = new ExtensionLoader<>(type);
+            ExtensionLoader<T> loader = new ExtensionLoader<>(type);
             loaderMap.put(type, loader);
         }
 
-        return loaderMap.get(type);
+        return (ExtensionLoader<T>) loaderMap.get(type);
     }
 
     private List<String> getResourceContent(URL resourceURL){
