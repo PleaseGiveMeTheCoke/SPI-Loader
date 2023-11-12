@@ -100,7 +100,7 @@ public class AdaptiveClassCodeGenerator {
 
     private String generateClassInfo() {
         String classInfo = "public class %s$Adaptive implements %s {\n";
-        return String.format(classInfo, type.getSimpleName(), type.getSimpleName());
+        return String.format(classInfo, type.getSimpleName(), type.getName());
     }
 
     private String generatePackageInfo() {
