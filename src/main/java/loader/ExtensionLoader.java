@@ -1,7 +1,9 @@
 package loader;
 
+import annotation.Adaptive;
 import annotation.SPI;
 import config.LoadingConfig;
+import injector.Injector;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,12 +20,19 @@ public class ExtensionLoader<T> {
 
     private Object cachedAdaptiveInstance;
 
+    private Injector injector;
+
     private static final Map<Class<?>, ExtensionLoader<?>> loaderMap = new ConcurrentHashMap<>();
 
     private static final Map<Class<?>, Object> objectMap = new ConcurrentHashMap<>();
 
     public ExtensionLoader(Class<?> type) {
         this.type = type;
+        if(type == Injector.class){
+            injector = null;
+        }else{
+            injector = ExtensionLoader.getExtensionLoader(Injector.class).getAdaptiveExtension();
+        }
     }
 
     public T getExtension(String name){
@@ -48,6 +57,9 @@ public class ExtensionLoader<T> {
             // 实例化
             try {
                 o = aClass.newInstance();
+                if(injector != null){
+                    injector.inject(o);
+                }
             } catch (Exception e) {
                 return null;
             }
@@ -59,6 +71,9 @@ public class ExtensionLoader<T> {
         // 实例化
         try {
           o = aClass.newInstance();
+          if(injector != null){
+              injector.inject(o);
+          }
         } catch (Exception e) {
             return null;
         }
@@ -83,11 +98,21 @@ public class ExtensionLoader<T> {
         }
 
         cachedAdaptiveInstance = createAdaptiveInstance();
+        if(injector != null){
+            injector.inject(cachedAdaptiveInstance);
+        }
         return (T) cachedAdaptiveInstance;
     }
 
     private Object createAdaptiveInstance() {
         try {
+            TreeMap<String, Class<?>> classMap = getClassMap();
+            for (String key : classMap.keySet()) {
+                if(classMap.get(key).getAnnotation(Adaptive.class) != null){
+                    return getExtension(key);
+                }
+            }
+
             String code = new AdaptiveClassCodeGenerator(type).generateCode();
             return Compiler.compile(type, code, type.getClassLoader()).newInstance();
         } catch (Exception e) {

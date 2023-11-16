@@ -6,7 +6,7 @@ import loader.ExtensionLoader;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        testAdaptive();
+        testInject();
     }
 
     private static void testSingleton(){
@@ -32,11 +32,16 @@ public class Main {
         System.out.println(animal.owner("cat"));
     }
 
-    private static void testAdaptive() throws IllegalAccessException, InstantiationException {
+    private static void testAdaptive() {
         Animal animal = ExtensionLoader.getExtensionLoader(Animal.class).getAdaptiveExtension();
         System.out.println(animal.howl());
         System.out.println(animal.owner("dog"));
         System.out.println(animal.owner("cat"));
+    }
+
+    private static void testInject(){
+        Animal animal = ExtensionLoader.getExtensionLoader(Animal.class).getExtension("dog");
+        System.out.println(animal.eat());
     }
 
 }
